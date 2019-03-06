@@ -1,0 +1,40 @@
+
+import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
+
+def addlayer(inputs, insize, outsize, activefunction=None):
+    with tf.name_scope('layer'):
+        with tf.name_scope('weights'):
+            Weight = tf.Variable(tf.random_normal([insize, outsize]), name = 'w')
+        with tf.name_scope('biases'):
+            biases = tf.Variable(tf.zeros([1, outsize]) + 0.1)
+        with tf.name_scope('Wx_plus_b'):
+            Wx_plus_b = tf.matmul(inputs,Weight) + biases
+        if activefunction is None:
+            outputs = Wx_plus_b
+        else:
+            outputs = activefunction(Wx_plus_b)
+        return outputs
+
+x_data = np.linspace(-1,1,300)[:, np.newaxis]
+nosic = np.random.normal(0, 0.05, x_data.shape)
+y_data = np.square(x_data)- 0.5 + nosic
+
+with tf.name_scope('inputs'):
+    xs = tf.placeholder(tf.float32,[None,1], name='x_input')
+    ys = tf.placeholder(tf.float32,[None,1], name='y_input')
+
+l1 = addlayer(xs, 1, 10, activefunction=tf.nn.relu)
+prediction = addlayer(l1,10,1,activefunction=None)
+
+with tf.name_scope('loss'):
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(ys - prediction),reduction_indices=[1]))
+with tf.name_scope('train'):
+    train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
+
+init = tf.initialize_all_variables()
+
+sess = tf.Session()
+writer = tf.summary.FileWriter('logs/',sess.graph)
+sess.run(init)
