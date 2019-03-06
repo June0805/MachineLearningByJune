@@ -1,0 +1,55 @@
+%matplotlib
+import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
+
+def addlayer(inputs, insize, outsize, n_layer, activefunction=None):
+    layer_name = 'layer%s' % n_layer
+    with tf.name_scope(layer_name):
+        with tf.name_scope('weights'):
+            Weight = tf.Variable(tf.random_normal([insize, outsize]), name = 'w')
+            tf.summary.histogram(layer_name+'/weights',Weight)
+        with tf.name_scope('biases'):
+            biases = tf.Variable(tf.zeros([1, outsize]) + 0.1)
+            tf.summary.histogram(layer_name+'/biases',biases)
+        with tf.name_scope('Wx_plus_b'):
+            Wx_plus_b = tf.matmul(inputs,Weight) + biases
+        if activefunction is None:
+            outputs = Wx_plus_b
+        else:
+            outputs = activefunction(Wx_plus_b)
+        tf.summary.histogram(layer_name+'/output',outputs)
+        return outputs
+
+x_data = np.linspace(-1,1,300)[:, np.newaxis]
+nosic = np.random.normal(0, 0.05, x_data.shape)
+y_data = np.square(x_data)- 0.5 + nosic
+
+with tf.name_scope('inputs'):
+    xs = tf.placeholder(tf.float32,[None,1], name='x_input')
+    ys = tf.placeholder(tf.float32,[None,1], name='y_input')
+
+l1 = addlayer(xs, 1, 10, n_layer=1, activefunction=tf.nn.relu)
+prediction = addlayer(l1,10,1,n_layer=2, activefunction=None)
+
+with tf.name_scope('loss'):
+    loss = tf.reduce_mean(tf.reduce_sum(tf.square(ys - prediction),reduction_indices=[1]))
+    tf.summary.scalar('loss',loss)
+    
+with tf.name_scope('train'):
+    train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
+
+sess = tf.Session()
+merged = tf.summary.merge_all()
+
+writer = tf.summary.FileWriter('logs/',sess.graph)
+
+init = tf.global_variables_initializer()
+sess.run(init)
+
+for i in range(1000):
+    sess.run(train_step,feed_dict={xs:x_data, ys:y_data})
+    if i % 50 == 0:
+        result = sess.run(merged,feed_dict={xs:x_data, ys:y_data})
+        writer.add_summary(result,i)
+
